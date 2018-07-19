@@ -1,15 +1,27 @@
 AS = as
-all:boot 
+LDFLAG= -T boot.ld
+source := $(wildcard *.s)
+obj := $(patsubst %.s,%.o,$(source))
+exe := $(patsubst %.o,%,$(obj) )
 
-boot : boot.o boot.ld
+
+all:Image
+
+
+Image: $(exe)
+	dd if=boot of=Image bs=512 count=1 
+	dd if=head of=Image bs=512 count=4 seek=1 
+
 #	ld --oformat binary -N -e BOOT -Ttext 0x7c00 -o boot boot.o
-	ld -T boot.ld   boot.o -o boot #使用链接脚本进行链接
-	objcopy -O binary -j .text boot
-	@-rm *.o
-.s.o:
-	@echo $<
-	as --32 -o $*.o $<
+
+$(exe): % : %.o
+	ld -T boot.ld $< -o $@
+	objcopy -O binary -j .text $@
+
+$(obj): %.o : %.s 
+	$(AS) --32 -o $@ $<
+
 run:
-	@qemu -boot a -fda boot 
+	@qemu -boot a -fda Image 
 clean:
-	@-rm boot boot.o
+	@-rm  *.o $(exe)
