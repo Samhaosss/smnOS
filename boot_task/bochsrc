@@ -1,4 +1,7 @@
-floppya: 1_44="./Image", status=inserted 
+romimage: file=$(BXSHARE)/BIOS-bochs-latest
+vgaromimage: file=$(BXSHARE)/VGABIOS-lgpl-latest 
+floppya: 1_44=Image, status=inserted 
+
 boot: floppy
-display_library: x, options="gui_debug"
+#display_library: x, options="gui_debug"
 
