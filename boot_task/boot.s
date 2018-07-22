@@ -65,7 +65,7 @@ load_sys:
 	mov %ax, %es 
 	mov $0x0, %bx 
 	mov $0x02, %ah
-	mov $1, %al
+	mov $4, %al
 	int $0x13
 	jnc load_ok
 
