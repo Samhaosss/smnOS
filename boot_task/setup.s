@@ -118,6 +118,9 @@ a20:
 	mov %ax, %gs
 	ljmp $sel_cs0, $0
 
+die:
+	jmp die
+
 IDT:
 	
 
@@ -138,6 +141,7 @@ gdt:
 	.word 0x0000		#base 
 	.word 0x9200
 	.word 0x00c0 
+	.quad 0x00c0920b80000002 #显存段 0x18
 #global descriptor table 
 
 idt_48:
