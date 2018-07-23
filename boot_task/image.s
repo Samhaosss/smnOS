@@ -51,17 +51,21 @@
 .text 
 
 setup:
-#	movl $0x10, %eax
-#	mov %ax, %ds
-	lss init_stack, %esp
+	mov $0x10, %ax
+	mov %ax, %ds
+#	mov %ax, %ss
+#	lss init_stack, %esp
+#	mov $init_stack, %esp
 
+	die :jmp die 
+#	lgdt gdt_48
 	call setLdt
 	call setGdt
 #设置段表后，刷新段寄存器
-	mov $KDSEG, %eax 
+	movl $KDSEG, %eax 
 	mov %ax, %ds
 	mov %ax, %es
-	mov %ax,%fs
+	mov %ax, %fs
 	mov %ax, %gs
 	lss init_stack, %esp
 #设置8253芯片，改变计数器发起中断频率
@@ -243,6 +247,7 @@ end_gdt:
 init_stack:
 	.long init_stack
 	.word 0x10
+	
 .align 2 
 ldt0:
 	.quad 0x0000000000000000
@@ -298,8 +303,6 @@ task1 :
 	
 	.fill 128,4,0
 usr_stk1:
-
-
 
 
 
