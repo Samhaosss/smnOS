@@ -52,14 +52,9 @@
 setup:
 	mov $0x10, %ax
 	mov %ax, %ds
-	mov %ax, %es
-	mov %ax, %gs 
-	mov %ax, %ss
-#	lss init_stack, %esp
-	mov $init_stack, %esp
+	lss init_stack, %esp
 
-	lgdt gdt_48
-#	call setLdt
+	call setLdt
 	call setGdt
 #设置段表后，刷新段寄存器
 	movl $0x10, %eax 
@@ -67,7 +62,6 @@ setup:
 	mov %ax, %es
 	mov %ax, %fs
 	mov %ax, %gs
-#	die :jmp die 
 	lss init_stack, %esp
 #设置8253芯片，改变计数器发起中断频率
 	movb $0x36, %al		#设置通道0工作在方式3、二进制计数
@@ -92,13 +86,10 @@ setup:
 	movw $sys_interrupt, %ax
 	movw $0xef00, %dx
 	movl $0x80, %ecx
-	lea idt(,%ecx,8), %edi 
+	lea idt(,%ecx,8), %esi 
 	movl %eax, (%esi)
 	movl %edx, 4(%esi)
 
-#	mov $64, %al 
-#	call write_char 
-#die : jmp die 
 
 #	接下来设置任务0的内核堆栈，模拟中断返回、
 	pushfl		#复位标志寄存器 嵌套任务标志
@@ -160,18 +151,18 @@ write_char:
 	popl %ebx 
 	pop %gs
 	ret 
-#.align 2 
+.align 2 
 default:
 	push %ds
 	pushl %eax
 	movl $0x10, %eax 
 	mov %ax, %ds
-	mov $67, %ax
+	movl $67, %eax
 	call write_char 
 	popl %eax 
 	pop %ds
 	iret 
-#.align 2 
+.align 2 
 #任务切换代码 方式与linux 0.11基本相似
 timer_interrupt:
 	push %ds
@@ -289,7 +280,7 @@ task0:
 	mov %ax, %ds  #指向局部数据段
 	mov $65, %al
 	int $0x80
-	movl $0xfff, %eax
+	movl $0xfff, %ecx
 1:  loop 1b 
 	jmp task0
 
@@ -298,7 +289,7 @@ task1 :
 #	mov %ax, %ds  #指向局部数据段
 	mov $66, %al
 	int $0x80
-	movl $0xfff, %eax
+	movl $0xfff, %ecx
 1:  loop 1b 
 	jmp task1
 	
