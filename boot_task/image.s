@@ -49,24 +49,25 @@
 .equ LDT1, 0X38
 
 .text 
-
 setup:
 	mov $0x10, %ax
 	mov %ax, %ds
-#	mov %ax, %ss
+	mov %ax, %es
+	mov %ax, %gs 
+	mov %ax, %ss
 #	lss init_stack, %esp
-#	mov $init_stack, %esp
+	mov $init_stack, %esp
 
-	die :jmp die 
-#	lgdt gdt_48
-	call setLdt
+	lgdt gdt_48
+#	call setLdt
 	call setGdt
 #设置段表后，刷新段寄存器
-	movl $KDSEG, %eax 
+	movl $0x10, %eax 
 	mov %ax, %ds
 	mov %ax, %es
 	mov %ax, %fs
 	mov %ax, %gs
+#	die :jmp die 
 	lss init_stack, %esp
 #设置8253芯片，改变计数器发起中断频率
 	movb $0x36, %al		#设置通道0工作在方式3、二进制计数
@@ -95,8 +96,8 @@ setup:
 	movl %eax, (%esi)
 	movl %edx, 4(%esi)
 
-	mov $64, %al 
-	call write_char 
+#	mov $64, %al 
+#	call write_char 
 #die : jmp die 
 
 #	接下来设置任务0的内核堆栈，模拟中断返回、
@@ -159,7 +160,7 @@ write_char:
 	popl %ebx 
 	pop %gs
 	ret 
-.align 2 
+#.align 2 
 default:
 	push %ds
 	pushl %eax
@@ -170,7 +171,7 @@ default:
 	popl %eax 
 	pop %ds
 	iret 
-.align 2 
+#.align 2 
 #任务切换代码 方式与linux 0.11基本相似
 timer_interrupt:
 	push %ds
@@ -193,7 +194,7 @@ timer_interrupt:
 	pop %ds
 	iret 
 
-.align 2 
+#.align 2 
 sys_interrupt:
 	push %ds
 	pushl %edx
@@ -218,7 +219,7 @@ current :
 screem_location:
 	.long 0
 
-.align 2
+#.align 2
 idt_48:
 	.word 256*8-1
 	.long idt
