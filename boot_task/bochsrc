@@ -1,5 +1,5 @@
-romimage: file=$(BXSHARE)/BIOS-bochs-latest
-vgaromimage: file=$(BXSHARE)/VGABIOS-lgpl-latest 
+romimage: file=/usr/share/bochs/BIOS-bochs-latest
+vgaromimage: file=/usr/share/bochs/VGABIOS-lgpl-latest 
 floppya: 1_44=Image, status=inserted 
 
 boot: floppy
