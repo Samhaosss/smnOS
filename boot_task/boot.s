@@ -59,7 +59,7 @@ load_setup:
 die:	jmp die 
 
 load_sys:
-	mov $0x0000, %bx
+	mov $0x0000, %dx
 	mov $0x0006, %cx
 	mov $IMAGESEG, %ax
 	mov %ax, %es 
