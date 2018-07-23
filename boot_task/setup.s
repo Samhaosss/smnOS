@@ -79,7 +79,7 @@ is_disk1:
 	#准备进入 保护模式
 	cli
 	#move sys image into to 0x0000:0000
-	mov $0x1000, %ax
+/*	mov $0x1000, %ax
 	mov %ax, %ds 
 	mov $0x0000, %ax
 	mov %ax, %es
@@ -87,7 +87,8 @@ is_disk1:
 	sub %di, %di 
 	mov $0x1000, %cx 
 	rep movsw 
-/*
+*/
+	mov $0x0000, %ax 
 do_move:
 #接下来将内核从0x1000:0000移动到0x0000:0000
 #rep movsw 将ds:si -> es:di
@@ -101,7 +102,7 @@ do_move:
 	sub %si, %si
 	mov $0x8000,%cx
 	rep movsw
-	jmp do_move*/
+	jmp do_move
 
 end_move:
 	mov $SETUPSEG,%ax
