@@ -52,7 +52,7 @@ load_setup:
 	mov $OFFSET, %bx
 	
 	mov $0x02, %ah
-	mov $1, %al  #读取扇区数
+	mov $4, %al  #读取扇区数
 	int $0x13
 	
 	jnc load_sys
@@ -60,7 +60,7 @@ die:	jmp die
 
 load_sys:
 	mov $0x0000, %bx
-	mov $0x0003, %cx
+	mov $0x0005, %cx
 	mov $IMAGESEG, %ax
 	mov %ax, %es 
 	mov $0x0, %bx 

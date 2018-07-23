@@ -111,29 +111,31 @@ a20:
 
 #seg selector
 	.equ sel_cs0, 0x0008
+	ljmp $sel_cs0, $0
 	mov $0x10,%ax
 	mov %ax, %ds
 	mov %ax, %es
 	mov %ax, %fs
 	mov %ax, %gs
-	ljmp $sel_cs0, $0
 
 IDT:
 	
 
 
 gdt_48:
-	.word 0x800
+	.word 0x7ff
 	.word 512+gdt, 0x9
 
 gdt:
 	.word 0, 0, 0, 0
 	#code seg 
+#	.quad 0x00c09a00000007ff
 	.word 0x07ff		#limit 
 	.word 0x0000		#base 
 	.word 0x9a00		# 1001 1010 0000 0000
 	.word 0x00c0		# 0000 0000 1100 0000
 	#data set 
+#	.quad 0x00c09200000007ff
 	.word 0x07ff		#limit 
 	.word 0x0000		#base 
 	.word 0x9200

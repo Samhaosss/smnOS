@@ -51,16 +51,18 @@
 .text 
 
 setup:
+#	movl $0x10, %eax
+#	mov %ax, %ds
 	lss init_stack, %esp
 
-	call setGdt
 	call setLdt
+	call setGdt
 #设置段表后，刷新段寄存器
 	mov $KDSEG, %eax 
-	mov %eax, %ds
-	mov %eax, %es
-	mov %eax,%fs
-	mov %eax, %gs
+	mov %ax, %ds
+	mov %ax, %es
+	mov %ax,%fs
+	mov %ax, %gs
 	lss init_stack, %esp
 #设置8253芯片，改变计数器发起中断频率
 	movb $0x36, %al		#设置通道0工作在方式3、二进制计数
@@ -72,7 +74,6 @@ setup:
 	movb %ah, %al
 	out %al, %dx 
 
-	die: jmp die
 #接下来设置指定中断处理程序:0x80 0x08
 	#0x08 timmer_interrupt 
 	movl $0x00080000, %eax #设置中断门  高位为内核代码段选择符
@@ -89,6 +90,10 @@ setup:
 	lea idt(,%ecx,8), %edi 
 	movl %eax, (%esi)
 	movl %edx, 4(%esi)
+
+	mov $64, %al 
+	call write_char 
+#die : jmp die 
 
 #	接下来设置任务0的内核堆栈，模拟中断返回、
 	pushfl		#复位标志寄存器 嵌套任务标志
