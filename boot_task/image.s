@@ -20,39 +20,47 @@
 #		| TASK1CODE |
 #		| TASK0CODE	|
 #		|___________|
-#		|	KRN_STK	|
-#		|   TSS1	|
-#		|	LDT1	|
+#		|	TASK	|
 #		|___________|
-#		|	KRNSTK0	| --------->内核态堆栈
-#		|	TSS0	|
+#		|	USTACK	|
+#		|___________|
+#		|	KSTACK	| --------->内核态堆栈
+#		|___________|
 #		|	LDT0	|
 #		|___________|
-#		| INITSTACK	|  -------->初始堆栈，后用于任务0用户态堆栈
+#		|    TSS	|  -------->初始堆栈，后用于任务0用户态堆栈
 #		|___________|
 #		|	 GDT	|
 #		|___________|
 #		|	 IDT	|
 #		|___________|		^
-#		|			|		|
+#		|	kernel	|		|
 # 0x0000|	setup	|		|
 #		|___________|		|
 
+
+
+#现在尝试在setup中 添加0号init任务，用于创建26和任务
+#每个任务 有自己的LDT TDD KSTACK USTACK , 利用分段，进行任务之间的隔离
+#26个任务会分别输出A～Z
 
 .equ LTACH, 11930
 .equ SCRNSEG, 0X18
 .equ KCSEG, 0X08
 .equ KDSEG, 0X10
-.equ TSS0, 0X20
-.equ LDT0, 0X28
+.equ TSS0, 0X28 
+.equ LDT0, 0X20 
 .equ TSS1, 0x30
 .equ LDT1, 0X38
-
+.equ LOWRNG, 0x1f
 .text 
 setup:
 	mov $0x10, %ax
 	mov %ax, %ds
-	lss init_stack, %esp
+#	lss KSTACK , %esp
+#栈与数据段在同一段
+	mov %ax, %ss
+	movl $KSTACK, %esp  
 
 	call setLdt
 	call setGdt
@@ -62,7 +70,9 @@ setup:
 	mov %ax, %es
 	mov %ax, %fs
 	mov %ax, %gs
-	lss init_stack, %esp
+	mov %ax, %ss
+	movl $KSTACK, %esp  
+
 #设置8253芯片，改变计数器发起中断频率
 	movb $0x36, %al		#设置通道0工作在方式3、二进制计数
 	movl $0x43, %edx	#8253控制寄存器写端口
@@ -90,12 +100,66 @@ setup:
 	movl %eax, (%esi)
 	movl %edx, 4(%esi)
 
+#需要debug gdt更新存在问题
+init_task:
+	#创建25组 TSS及其描述符 分配堆栈
+	lea tss_dis, %esi #set tss discriptor  
+	lea empty_tss, %edi #set tss 
+	movl KSTACK, %edx
+	sub $512, %edx
+	movl %edx, KSTACK 
+	movl USTACK, %edx
+	sub $512, %edx
+	mov %edx, USTACK 
 
+	mov $25, %cx
+do_init:
+	mov $0x00680000, %edx 
+	mov %di, %dx
+	movl %edx, (%esi)
+	add $4, %esi 
+	movl $0xe9000000, %edx 
+	mov %edx, (%esi)
+	add $4, %esi 
+
+	movl KSTACK, %edx
+	movl %ecx, (%edx)
+
+	movl %edx, 4(%edi)
+	sub $512, %edx
+	movl %edx, KSTACK 
+	movl $0x10, %edx
+	movl %edx, 8(%edi)
+	movl $task, %edx
+	movl %edx, 32(%edi)
+	movl $0x200, %edx
+	movl %edx,36(%edi)
+	movl USTACK, %edx 
+	movl %edx, 56(%edi)
+	sub  $512, %edx
+	movl %edx, USTACK 
+	movl $0x17, %edx 
+	movl %edx, 72(%edi)
+	movl $0x0f, %edx
+	movl %edx, 76(%edi)
+	mov $0x17, %edx 
+	mov %edx, 80(%edi)
+	mov %edx, 84(%edi) 
+	mov %edx, 88(%edi) 
+	movl %edx,92(%edi)
+	mov	$LDT0, %edx 
+	mov %edx, 96(%edi)
+	mov $0x8000000,%edx
+	mov %edx,100(%edi) 
+	add $104, %edi
+	dec %ecx
+	jne do_init  
+
+back_user_mode:
 #	接下来设置任务0的内核堆栈，模拟中断返回、
 	pushfl		#复位标志寄存器 嵌套任务标志
 	andl $0xffffbfff, (%esp)
-	popfl
-
+	popfl 
 	movl $TSS0, %eax
 	ltr %ax
 	movl $LDT0, %eax 
@@ -110,11 +174,12 @@ setup:
 #	| $ts0	|	---> EIP
 
 	pushl $0x17
-	pushl $init_stack 
+	pushl $USTACK 
 	pushfl 
 	pushl $0x0f
-	pushl $task0
+	pushl $task
 	iret 
+
 setGdt:
 	lgdt gdt_48
 	ret
@@ -164,25 +229,54 @@ default:
 	iret 
 .align 2 
 #任务切换代码 方式与linux 0.11基本相似
+selector:
+	.long TSS0 
+#这里还未更新
 timer_interrupt:
 	push %ds
 	pushl %eax 
+	#pushl %ebx 
+	pushl %ebx 
 	movl $0x10, %eax 
 	mov %ax, %ds
 	movb $0x20, %al		#允许其他硬件中断
 	outb %al, $0x20
-	movl $1, %eax		#判断当前是那个任务
-	cmpl %eax, current 
-	je 1f
-	movl %eax, current
-	ljmp $TSS1, $0
-	jmp 2f
-1:
-	movl $0, current
-	ljmp $TSS0, $0
-2:
+
+	mov $64, %eax 
+	call write_char 
+	mov current, %ebx 
+	cmpl %eax, %ebx
+	jne next 
+	mov $0, %ebx 
+	mov %ebx, current 
+	ljmp $0x28, $0
+	jmp back
+next:
+	mov $1,%ebx
+	mov %ebx,current 
+	ljmp $0x30, $0
+back:
+	popl %ebx
+	popl %eax 
+	pop %ds 
+#	mov current,%ebx 
+#	mov $25, %eax
+#	cmpl %eax, %ebx  
+#	jne next
+#	mov $0, %ebx 
+#next :
+#	mov %ebx, %eax
+#	add $1, %ebx
+#	mov %ebx, current 
+#	sub $1, %eax 
+/*	shl $3, %eax 
+	addl $TSS0, %eax
+	
+	ljmp $0x30, $0
+	popl %ebx 
 	popl %eax 
 	pop %ds
+*/	
 	iret 
 
 #.align 2 
@@ -202,9 +296,6 @@ sys_interrupt:
 	pop %ds
 	iret 
 
-
-#----------------------------------
-
 current :
 	.long 0
 screem_location:
@@ -222,131 +313,53 @@ gdt_48:
 
 .align 2 
 idt : .fill 256, 8, 0
+#对于代码段，段描述符指明了其：界限-粒度、基址、存在、D（默认操作数）、特权、类型（读、执行、一致/非一致）
+#对于数据段，段描述副指明了其：界限-粒度、基址、存在、B（堆栈指针SP/ESP，上界）、特权、类型（读、写、拓展方向）
 
 gdt:
 	.quad 0x0000000000000000
 	.quad 0x00c09a00000007ff
 	.quad 0x00c09200000007ff
-	.quad 0x00c0920b80000002
-	.word 0x68, tss0, 0xe900, 0x0
+	.quad 0x00c0f20b80000002
 	.word 0x40, ldt0, 0xe200, 0x0
-	.word 0x68, tss1, 0xe900, 0x0
-	.word 0x40, ldt1, 0xe200, 0x0
+	.word 0x68, TASKS_TSS, 0xe900, 0x0
+	.word 0x68, TASKS_TSS, 0xe900, 0x0
+tss_dis:.fill 25, 8, 0
 end_gdt:
 
-.fill 128, 4, 0
-
-init_stack:
-	.long init_stack
-	.word 0x10
-	
-.align 2 
-ldt0:
-	.quad 0x0000000000000000
-	.quad 0x00c0fa00000003ff  #对应选择符:0x0f
-	.quad 0x00c0f200000003ff	
-tss0:
+TASKS_TSS:
 	.long 0 #back link
-	.long krn_stk0, 0x10 #esp0, ss0
+	.long KSTACK, 0x10 #esp0, ss0
 	.long 0, 0, 0, 0, 0 #esp1, ss1, esp2, ss2 cr3
 	.long 0, 0, 0, 0, 0 #eip efalg eax ecx edx 
 	.long 0, 0, 0, 0, 0 #ebx esp ebp esi edi 
 	.long 0, 0, 0, 0, 0, 0 #es cs ss ds fs gs 
 	.long LDT0, 0x8000000 #ldt bitmap
-	
-.fill 128,4,0
-krn_stk0:
-
+empty_tss:
+	.fill 25*104, 1, 0
 .align 2 
-ldt1:
+ldt0:
 	.quad 0x0000000000000000
 	.quad 0x00c0fa00000003ff  #对应选择符:0x0f
-	.quad 0x00c0f200000003ff	
-tss1:
-	.long 0 #back link
-	.long krn_stk1, 0x10 #esp0, ss0
-	.long 0, 0, 0, 0, 0 #esp1, ss1, esp2, ss2 cr3
-	.long task1, 0x200 #eip eflags
-	.long 0, 0, 0, 0 # eax ecx edx  ebx
-	.long usr_stk1, 0, 0, 0 # esp ebp esi edi 
-	.long 0x17, 0x0f, 0x17,0x17, 0x17, 0x17 #es cs ss ds fs gs 
-	.long LDT1, 0x8000000 #ldt bitmap
-	
-.fill 128,4,0
-krn_stk1:
+	.quad 0x00c0f200000003ff 
+#每个任务一个内核栈
+.fill 26*128*4, 1, 0
+KSTACK:
+	.long KSTACK 
 
-task0:
+.fill 26*128*4, 1,  0
+USTACK:
+	.long USTACK 
+	
+#所有的任务共享此代码
+task:
 	movl $0x17, %eax 
 	mov %ax, %ds  #指向局部数据段
 	mov $65, %al
-	int $0x80
+#	int $0x80
+	call write_char 
 	movl $0xfff, %ecx
 1:  loop 1b 
-	jmp task0
+	jmp task
 
-task1 :
-#	movl $0x17, %eax 
-#	mov %ax, %ds  #指向局部数据段
-	mov $66, %al
-	int $0x80
-	movl $0xfff, %ecx
-1:  loop 1b 
-	jmp task1
-	
-	.fill 128,4,0
-usr_stk1:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	
 
