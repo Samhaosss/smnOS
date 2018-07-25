@@ -1,15 +1,16 @@
 .code32 
-#这里将编写两个任务轮流执行的demo 
+#这里将编写二十六任务轮流执行
+
 #在实模式下的段表和中断表设置不足
 #因此首先设置段表:
-#	0	| 0 0 0 0 |
+#	0	| 0 0 0 0			  |
 #	1	| 00c0 9a00 0000 07ff |  --临时内核代码段	
 #	2	| 00c0 9200 0000 07ff |	 --临时内核数据段
 #	3	| 00c0 920b 8000 0002 |  --显存段
-#	4	|        tss0		  |  --任务0tss
-#	5	|		 ldt0		  |  --任务0ldt
+#	4	|        ldt0		  |  --所有任务共享一个ldt
+#	5	|		 tss0		  |  --任务0tss
 #	6	|		 tss1		  |  --任务1tss
-#	7	|		 ldt1		  |	 --任务1ldt
+#	7	|		 tss*...	  |	 --任务*ldt
 
 #接着设置中断表
 # 除 0x08、0x80中断为时钟和系统中断给予处理程序
@@ -41,8 +42,9 @@
 
 
 #现在尝试在setup中 添加0号init任务，用于创建26和任务
-#每个任务 有自己的LDT TDD KSTACK USTACK , 利用分段，进行任务之间的隔离
+#每个任务 有自己的 TSS KSTACK USTACK
 #26个任务会分别输出A～Z
+#会使用轮转调度
 
 .equ LTACH, 11930
 .equ SCRNSEG, 0X18
@@ -57,7 +59,6 @@
 setup:
 	mov $0x10, %ax
 	mov %ax, %ds
-#	lss KSTACK , %esp
 #栈与数据段在同一段
 	mov %ax, %ss
 	movl $KSTACK, %esp  
@@ -114,43 +115,46 @@ init_task:
 
 	mov $25, %cx
 do_init:
-	mov $0x00680000, %edx 
+	mov $0x0068, %dx
+	movw %dx, (%esi)
 	mov %di, %dx
-	movl %edx, (%esi)
-	add $4, %esi 
-	movl $0xe9000000, %edx 
-	mov %edx, (%esi)
-	add $4, %esi 
+	movw %dx, 2(%esi)
+	movl $0x0000e900, %edx 
+	movl %edx, 4(%esi)
+	add $8, %esi 
 
-	movl KSTACK, %edx
-	movl %ecx, (%edx)
-
-	movl %edx, 4(%edi)
+	movl KSTACK, %edx	
+	movl %edx, 4(%edi)	#KSTACK
 	sub $512, %edx
 	movl %edx, KSTACK 
-	movl $0x10, %edx
-	movl %edx, 8(%edi)
+	movl $0x10, %edx	
+	movl %edx, 8(%edi)	#ss0
 	movl $task, %edx
-	movl %edx, 32(%edi)
-	movl $0x200, %edx
-	movl %edx,36(%edi)
-	movl USTACK, %edx 
-	movl %edx, 56(%edi)
+	movl %edx, 32(%edi)	#eip
+	movl $0x200, %edx	
+	movl %edx,36(%edi)	#eflag
+	movl USTACK, %edx
+/*	
+	#传参数给用户栈
+	sub  $4, %edx 
+	movl %ecx, (%edx)	
+*/
+	movl %edx, 56(%edi)	#esp
 	sub  $512, %edx
 	movl %edx, USTACK 
 	movl $0x17, %edx 
-	movl %edx, 72(%edi)
+	movl %edx, 72(%edi)		#es
 	movl $0x0f, %edx
-	movl %edx, 76(%edi)
+	movl %edx, 76(%edi)		#cs
 	mov $0x17, %edx 
-	mov %edx, 80(%edi)
+	mov %edx, 80(%edi)		#ss ds fs gs 
 	mov %edx, 84(%edi) 
 	mov %edx, 88(%edi) 
 	movl %edx,92(%edi)
 	mov	$LDT0, %edx 
-	mov %edx, 96(%edi)
+	mov %edx, 96(%edi)		#LDT0
 	mov $0x8000000,%edx
-	mov %edx,100(%edi) 
+	mov %edx,100(%edi)		#IOBITMAP
 	add $104, %edi
 	dec %ecx
 	jne do_init  
@@ -204,6 +208,8 @@ write_char:
 	mov $SCRNSEG, %ebx 
 	mov  %bx, %gs
 	movl screem_location, %ebx
+	movl current, %eax
+	addl $65, %eax 
 	shl $1, %ebx 
 	movb %al, %gs:(%ebx)
 	shr $1, %ebx 
@@ -230,7 +236,8 @@ default:
 .align 2 
 #任务切换代码 方式与linux 0.11基本相似
 selector:
-	.long TSS0 
+	.long 0
+T:	.word  TSS0 
 #这里还未更新
 timer_interrupt:
 	push %ds
@@ -242,41 +249,26 @@ timer_interrupt:
 	movb $0x20, %al		#允许其他硬件中断
 	outb %al, $0x20
 
-	mov $64, %eax 
-	call write_char 
-	mov current, %ebx 
-	cmpl %eax, %ebx
-	jne next 
-	mov $0, %ebx 
+	mov current,%ebx 
+	mov $25, %eax
+	cmpl %eax, %ebx  
+	jne next
+	mov $0, %ebx
 	mov %ebx, current 
-	ljmp $0x28, $0
-	jmp back
-next:
-	mov $1,%ebx
-	mov %ebx,current 
-	ljmp $0x30, $0
-back:
-	popl %ebx
-	popl %eax 
-	pop %ds 
-#	mov current,%ebx 
-#	mov $25, %eax
-#	cmpl %eax, %ebx  
-#	jne next
-#	mov $0, %ebx 
-#next :
-#	mov %ebx, %eax
-#	add $1, %ebx
-#	mov %ebx, current 
-#	sub $1, %eax 
-/*	shl $3, %eax 
-	addl $TSS0, %eax
+	jmp change
+next :
+	add $1, %ebx
+	mov %ebx, current 
+change: 
+	shl $3, %ebx 
+	add $TSS0, %bx
+	movw %bx,T 
+	ljmp *selector #,*%eax 
 	
-	ljmp $0x30, $0
 	popl %ebx 
 	popl %eax 
 	pop %ds
-*/	
+		
 	iret 
 
 #.align 2 
@@ -301,7 +293,7 @@ current :
 screem_location:
 	.long 0
 
-#.align 2
+.align 2
 idt_48:
 	.word 256*8-1
 	.long idt
@@ -320,10 +312,10 @@ gdt:
 	.quad 0x0000000000000000
 	.quad 0x00c09a00000007ff
 	.quad 0x00c09200000007ff
-	.quad 0x00c0f20b80000002
+	.quad 0x00c0920b80000002
 	.word 0x40, ldt0, 0xe200, 0x0
 	.word 0x68, TASKS_TSS, 0xe900, 0x0
-	.word 0x68, TASKS_TSS, 0xe900, 0x0
+#	.word 0x68, TASKS_TSS, 0xe900, 0x0
 tss_dis:.fill 25, 8, 0
 end_gdt:
 
@@ -342,6 +334,7 @@ ldt0:
 	.quad 0x0000000000000000
 	.quad 0x00c0fa00000003ff  #对应选择符:0x0f
 	.quad 0x00c0f200000003ff 
+
 #每个任务一个内核栈
 .fill 26*128*4, 1, 0
 KSTACK:
@@ -355,10 +348,12 @@ USTACK:
 task:
 	movl $0x17, %eax 
 	mov %ax, %ds  #指向局部数据段
-	mov $65, %al
-#	int $0x80
-	call write_char 
-	movl $0xfff, %ecx
+	mov %ax, %ss
+	mov %ax, %es
+
+	int $0x80
+#	这里循环设置大一些便于查看调度结果 
+	movl $0xFFFfff, %ecx
 1:  loop 1b 
 	jmp task
 
