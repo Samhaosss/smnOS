@@ -103,6 +103,39 @@ a20:
 	in $0x92, %al 
 	or $0x02, %al 
 	out %al, $0x92
+#reset 8259
+	mov $0x11, %al 
+	out %al, $0x20
+	.word 0x00eb, 0x00eb 
+	out %al, $0xa0
+	.word 0x00eb, 0x00eb 
+
+	mov $0x20, %al 
+	out %al, $0x21
+	.word 0x00eb, 0x00eb 
+	mov $0x28, %al 
+	out %al, $0xa1 
+	.word 0x00eb, 0x00eb 
+
+	mov $0x04, %al 
+	out %al, $0x21
+	.word 0x00eb, 0x00eb
+	mov $0x02, %al 
+	out %al, $0x21
+	.word 0x00eb, 0x00eb
+	
+	mov $0x01, %al 
+	out %al, $0x21
+	.word 0x00eb, 0x00eb
+	out %al, $0xa1 
+	.word 0x00eb, 0x00eb
+
+	mov $0xff, %al 
+	out %al, $0x21 
+	.word 0x00eb, 0x00eb
+	out %al, $0xA1 
+
+
 
 #start protect mode 
 	mov %cr0, %eax
@@ -110,13 +143,8 @@ a20:
 	mov %eax, %cr0 
 
 #seg selector
-	.equ sel_cs0, 0x0008
-	mov $0x10,%ax
-	mov %ax, %ds
-	mov %ax, %es
-	mov %ax, %fs
-	mov %ax, %gs
-	ljmp $sel_cs0, $0
+	.equ cs0, 0x0008
+	ljmp $cs0, $0
 
 die:
 	jmp die

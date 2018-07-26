@@ -12,11 +12,13 @@
 
 .text 
 
-#成功加载boot后boot会打印输出
-#随后 boot将自己转移至0x90000 并跳转
-#接着boot将setup加载入内存0x90200 并跳转
-#setup 成功加载后 会打印输出
-#如果成功 会有三次打印
+#随着开发，boot需要被修改的地方有:
+#1) load_sys部分
+#2) 设备信息、根分区
+
+/*
+*目前 boot的基本功能只有加载setup和system
+*/
 
 # 1)清除流水线缓存
 # 2) cs:0x7c00 ip:0000
@@ -57,7 +59,8 @@ load_setup:
 	
 	jnc load_sys
 die:	jmp die 
-
+#这里先使用尽量简单的办法，使用bios中断读取
+#随着内核变大这里需要修改
 load_sys:
 	mov $0x0000, %dx
 	mov $0x0006, %cx
@@ -70,6 +73,10 @@ load_sys:
 	jnc load_ok
 
 die_sys:jmp die_sys
+
+#linux0.11还存储了根分区信息，这里处于初级开发阶段，无需考虑 更多
+
+
 
 #ljmp实现段间跳转
 #jmp
@@ -100,7 +107,7 @@ print:
 
 
 string:
-	.ascii "hello 80x86"
+	.ascii "___loading!"
 
 
 .org 510 
