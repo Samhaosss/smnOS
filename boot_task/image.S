@@ -55,7 +55,6 @@
 .equ TSS1, 0x30
 .equ LDT1, 0X38
 .equ LOWRNG, 0x1f
-.global LDT0, TSS0, sys_interrupt, timer_interrupt, com_task, empty_tss, idt, gdt,default_pro
 .text 
 setup:
 	mov $0x10, %ax
@@ -163,7 +162,7 @@ do_init:
     pushl $0
     pushl $0
     pushl $back_user_mode
-    call main
+    jmp main
 
 back_user_mode:
 #	接下来设置任务0的内核堆栈，模拟中断返回、
@@ -185,7 +184,7 @@ back_user_mode:
 	pushl $USTACK
 	pushfl
 	pushl $0x0f
-	pushl $com_task
+	pushl $task
 	iret
 die:
     jmp die
@@ -230,7 +229,7 @@ write_char:
 	pop %gs
 	ret 
 .align 2 
-default_pro:
+default:
 	push %ds
 	pushl %eax
 	movl $0x10, %eax 
@@ -323,7 +322,7 @@ gdt:
 	.word 0x68, TASKS_TSS, 0xe900, 0x0
 tss_dis:.fill 25, 8, 0
 end_gdt:
-.global empty_tss, tss_dis,idt
+
 TASKS_TSS:
 	.long 0 #back link
 	.long KSTACK, 0x10 #esp0, ss0
@@ -340,7 +339,6 @@ ldt0:
 	.quad 0x00c0fa00000003ff  #对应选择符:0x0f
 	.quad 0x00c0f200000003ff 
 
-.global KSTACK, USTACK
 #每个任务一个内核栈
 KSTACK:
 .fill 26*128*4, 1, 0
@@ -362,6 +360,6 @@ com_task:
 #	这里循环设置大一些便于查看调度结果 
 	movl $0xFFFfff, %ecx
 1:  loop 1b 
-	jmp com_task
+	jmp task
 
 
