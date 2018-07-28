@@ -1,6 +1,7 @@
 #ifndef _SYS_H
 #define _SYS_H
-
+#define lidt() __asm__ ( "lidt idt_48\n\t"::)
+#define lgdt() __asm__ ("lgdt gdt_48\n\t"::)
 #define sti() __asm__ ("sti\n\r"::)
 #define cli() __asm__ ("cli\n\r"::)
 
@@ -37,39 +38,36 @@
 
 #define _set_trap_gate( n, add )\
 	_set_gate(&idt[n], 14, 0, add)
+#define _set_sys_gate( n, add )	\
+	_set_gate(&idt[n],15, 3, add)
 
 #define _set_seg_des( gate_add, type, dpl, base, limit ) {\
 	*(gate_add) = ((base)&0xff000000 ) |	\
-	( ( (base)&0x00ff00 ) >> 16 ) |	\
+	( ( (base)&0x00ff0000 ) >> 16 ) |	\
 	( (limit)&0xf0000 )	|	\
 	( (dpl)<< 13 ) |	\
-	( 0x004008000) |	\
+	( 0x00408000) |	\
 	( (type) << 8) ;	\
 	*((gate_add)+1) = ( ( (base) & 0x0000ffff) << 16 ) |	\
 	( (limit)& 0x0ffff );}
 
 
 #define _set_tssldt_desc(n,addr,type) \
-__asm__ ("movw $104,%1\n\t" \
+	__asm__ ("movw $104,%1\n\t" \
 	"movw %%ax,%2\n\t" \
 	"rorl $16,%%eax\n\t" \
 	"movb %%al,%3\n\t" \
-	"movb $" type ",%4\n\t" \
+	"movb $0x89,%4\n\t" \
 	"movb $0x00,%5\n\t" \
 	"movb %%ah,%6\n\t" \
 	"rorl $16,%%eax" \
-	::"a" (addr), "m" (*(n)), "m" (*(n+2)), "m" (*(n+4)), \
-	 "m" (*(n+5)), "m" (*(n+6)), "m" (*(n+7)) \
-	)
+	::"a" (addr), "m" (*(n)), "m" (*(n + 2)), "m" (*(n + 4)), \
+	 "m" (*(n + 5)), "m" (*(n + 6)), "m" (*(n + 7)) )
 
-#define set_tss_desc(n,addr) _set_tssldt_desc(((char *) (n)),((int)(addr)),"0x89")
-
+#define _set_tss_desc(n,addr) _set_tssldt_desc(((char *) (n)),((unsigned long )(addr)),(char)0x89)
 
 
-extern void default_pro();
-extern void timer_interrupt();
-extern void sys_interrupt();
-extern void com_task();
+
 extern long LDT0;
 
 

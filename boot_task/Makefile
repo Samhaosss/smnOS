@@ -1,10 +1,10 @@
-AS = as --32
+AS = as --32 -r
 #LDFLAG= -T boot.ld
-LDFLAG= -m elf_i386 -Ttext 0
+LDFLAG= -m  elf_i386 -Ttext 0 -e setup 
 source := $(wildcard *.s)
 obj := $(patsubst %.s,%.o,$(source))
 exe := $(patsubst %.o,%,$(obj) )
-CFLAGS  = -g -m32 -fno-builtin -fno-stack-protector -fomit-frame-pointer -fstrength-reduce
+CFLAGS  = -g -m32 -fno-builtin -fno-stack-protector -fomit-frame-pointer #-fstrength-reduce
 
 all:Image
 
@@ -33,7 +33,7 @@ setup: setup.s
 	objcopy -O binary -j .text setup 
 
 init.o : init.s
-	$(AS)  -o init.o init.s
+	$(AS)  -o  init.o init.s
 init.s:init.c
 	$(CC) $(CFLAGS) -S -o init.s init.c	
 
@@ -42,10 +42,9 @@ image.o : image.s
 
 
 init: init.o image.o
-	ld  $(LDFLAG) -e setup  image.o init.o -o init
+	ld  $(LDFLAG)   image.o init.o -o init
 	objcopy -O binary -j .text init
 
-#init.o : init.s
 
 run: Image 
 	@qemu -boot a -fda Image 

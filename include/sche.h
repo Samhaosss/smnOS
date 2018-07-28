@@ -40,17 +40,12 @@ struct tss_struct {
 //	struct i387_struct i387; 
 };
 typedef struct gdtldtidt_struct {
-	long low;
-	long high; 
+	short a;
+	short b;
+	short c;		
+	short d;
 } des_table[256];
 typedef struct stack{
 	long d[128];
-} stack_sp[26];
-
-extern stack_sp  KSTACK;
-extern stack_sp  USTACK;
-extern des_table idt;
-extern struct gdtldtidt_struct* tss_dis;
-extern struct tss_struct* empty_tss;
-
+} stack_sp[8];
 #endif 
