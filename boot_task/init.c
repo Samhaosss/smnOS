@@ -50,11 +50,11 @@ void gdt_init(void){
 		empty_tss[i].trace_bitmap=0x8000000;
 	}
 }
-/*
+
 void init(void){
-//	idt_init();
-	gdttss_init();
-	return ;
+	idt_init();
+	gdt_init();
+//	return ;
 }
-*/
+
 

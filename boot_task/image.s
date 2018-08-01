@@ -59,9 +59,9 @@ setup:
 	mov %ax, %ss
 	movl $KSTACK+511, %esp  
 	
-	call idt_init
+	call init
 	lidt idt_48 
-	call gdt_init
+#	call gdt_init
 	lgdt gdt_48 
 
 #设置段表后，刷新段寄存器
