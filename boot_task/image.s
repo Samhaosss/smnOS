@@ -1,31 +1,10 @@
 .code32
-/*
-#进入32位模式
-#将显存段移入gs寄存器
-#循环打印26个字母 从而证明setup程序的设置有效
-print:
-	sub  %eax, %eax 
-	mov  $0x18, %bx 
-	mov  %bx, %gs
-	mov  $65, %al
-	mov  $0, %ebx
-	mov  $26,%cx
-loop:
-	movb %al, %gs:(%ebx)
-	add  $2, %ebx
-	add  $1, %al
-	sub  $1,%cx
-	jne  loop	
-	
-#打印结束 暂时死循环在此
-halt: 
-	jmp halt
-*/
 .text 
-.global gdt, idt, pg_dri,tmp_floppy_area
+.global gdt, idt, pg_dri,tmp_floppy_area,empty_gdt ,gdt_48,idt_48 ,pg0 ,pg1 ,pg2, pg3, pg4
+
 pg_dir:
 start:
-#这里重新这支GDT IDT
+#这里 set GDT IDT
 	movl $0x10, %eax
 	mov %ax, %ds
 	lss stack_start,%esp
@@ -112,8 +91,8 @@ default:
 	mov %ax, %ds
 	mov %ax, %es
 	mov %ax, %fs
-	pushl $default_msg  #由内核专用print
-	call printk 
+#	pushl $default_msg  #由内核专用print
+#	call printk 
 	pop %fs
 	pop %es 
 	pop %ds 
