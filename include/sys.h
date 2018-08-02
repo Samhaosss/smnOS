@@ -4,19 +4,21 @@
 #define lgdt() __asm__ ("lgdt gdt_48\n\t"::)
 #define sti() __asm__ ("sti\n\r"::)
 #define cli() __asm__ ("cli\n\r"::)
-
-#define kmode_to_umode ()	\
-	__asm__ (" movl $0x28, %%eax\n\t"	\
+/*
+ * movl $0x28, %%eax\n\t"	\
 		"ltr %ax\n\t "	\
 		"movl $0x20, %%eax\n\t"	\
 		"lldt %%ax\n\t"	\
 		"sti\n\t"	\
+ * */
+#define kmode_to_umode ()	\
+	__asm__ (  "sti \n\t"	\
 		"movl %%esp, %%eax\n\t" \
 		"pushl $0x17 \n\t"	\
 		"pushl %%eax \n\t"	\
 		"pushfl\n\t"	\
 		"pushl $0x0f\n\t"	\
-		"pushl $com_task\n\t"	\
+		"pushl $1f\n\t"	\
 		"iret\n\t"	\
 		"1:\tmovl $0x17, %%eax \n\t"	\
 		"movw %%ax, %%ds\n\t"	\

@@ -42,6 +42,14 @@
 #本次的改动主要是 将gdt、idt设置代码用c实现，这样读起来比较舒服
 #但是因为硬盘加载还是使用bios调用，因此减少了任务数量以减少整个程序的大小
 
+#即将完成内核的中断处理和任务调度部分
+#使用少数几个任务进行测试
+#
+#中断和系统调用将不会一次性完成，首先将完成框架，具体处理过程将在进一步的完善中完成
+#
+#本内核仍然未开启分页 仅仅在分段下 进行分时调度任务
+
+
 .equ LTACH, 11930
 .equ SCRNSEG, 0X18
 .equ KCSEG, 0X08
@@ -55,13 +63,14 @@
 setup:
 	mov $0x10, %ax
 	mov %ax, %ds
+	mov %ax, %es
+	mov %ax, %fs
+	mov %ax, %gs 
 #栈与数据段在同一段
-	mov %ax, %ss
-	movl $KSTACK+511, %esp  
-	
-	call init
+	lss task0_ustack,%esp 
+#	mov %ax, %ss 
+#	movl $KSTACK+511, %esp  
 	lidt idt_48 
-#	call gdt_init
 	lgdt gdt_48 
 
 #设置段表后，刷新段寄存器
@@ -70,9 +79,25 @@ setup:
 	mov %ax, %es
 	mov %ax, %fs
 	mov %ax, %gs
-	mov %ax, %ss
-	movl $KSTACK+511, %esp
-#设置8253芯片，改变计数器发起中断频率
+	lss task0_ustack,%esp 
+	xorl %eax, %eax 
+1:
+	incl %eax
+	movl %eax, 0x000000
+	cmpl %eax, 0x100000
+	je 1b
+
+
+to_c_code:
+	pushl $0
+	pushl $0
+	pushl $0
+	pushl $sys_die
+	pushl $init
+sys_die:
+	jmp sys_die 
+
+/*#设置8253芯片，改变计数器发起中断频率
 	movb $0x36, %al		#设置通道0工作在方式3、二进制计数
 	movl $0x43, %edx	#8253控制寄存器写端口
 	outb %al, %dx
@@ -81,6 +106,9 @@ setup:
 	outb %al, %dx		# 设置通道0 频率为100HZ
 	movb %ah, %al
 	out %al, %dx 
+*/
+#这里即将增加更多的set操作 内核的部分将用c语言完成
+
 .align 8 
 back_user_mode: 
 #	接下来设置任务0的内核堆栈，模拟中断返回、
@@ -104,7 +132,9 @@ back_user_mode:
 	pushl $0x0f
 	pushl $com_task
 	iret
-write_char:
+
+//这一部分将有更完善的中断、系统调用完成
+/*write_char:
 	push %gs
 	pushl %ebx
 	mov $SCRNSEG, %ebx 
@@ -187,7 +217,7 @@ sys_interrupt:
 	popl %edx 
 	pop %ds
 	iret 
-
+*/ 
 current:
 	.long 0
 screem_location:
