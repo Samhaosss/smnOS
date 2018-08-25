@@ -5,8 +5,6 @@
  ************************************************************************/
 #ifndef _SCHE_H
 #define _SCHE_H
-#include<signal.h>
-#include<head.h>
 
 struct i387_struct {
 	long	cwd;
@@ -17,7 +15,7 @@ struct i387_struct {
 	long	foo;
 	long	fos;
 	long	st_space[20];	/* 8*10 bytes for each FP-reg = 80 bytes */
-
+};
 //#define  TASK_NM 26
 #define TASK_RUNNING 0
 #define TASK_INTERRUPTIBLE 1
