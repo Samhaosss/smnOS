@@ -1,5 +1,5 @@
 .code32
-.global 
+.global  system_call,time_interrupt,write_char
 
 .equ NR_CALL,2
 
@@ -42,18 +42,21 @@ screem_location:
 	.long 0
 .align 2 
 write_char:
+
 	movl $SCRNSEG, %ebx
 	mov %bx, %gs
 	movl screem_location, %eax
-	shl $1, %eax 
-	movb %dl, %gs:(%eax)
+	shl $1, %eax
+	movl 4(%esp), %ebx
+	movb %bx, %gs:(%eax)
 	shr $1, %eax
 	incl %eax 
 	cmpl $2000, %eax 
 	jb 1f
 	movl $0, %eax 
 1:
-	mov %eax, screem_location 
+	mov %eax, screem_location
+	movl $1, %eax
 	ret 
 
 

@@ -7,11 +7,7 @@
 #include<sys.h>
 #include<sche.h>
 
-extern stack_sp  KSTACK;
-extern stack_sp  USTACK;
-extern des_table idt;
-extern struct gdtldtidt_struct tss_dis[8];
-extern struct tss_struct empty_tss[8];
+
 
 
 
@@ -52,11 +48,11 @@ void idt_init(void){
 //}
 
 void init(void){
-//	idt_init();
+
 	trap_init();
 	sche_init();
+	sti();
 	kmode_to_umode();
-	
 	com_task();
 }
 

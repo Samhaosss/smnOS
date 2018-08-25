@@ -1,6 +1,6 @@
 include ../Makefile.header
 
-LDFLAG += -Ttext 0
+LDFLAGS += -Ttext 0
 
 source := $(wildcard *.s)
 obj := $(patsubst %.s,%.o,$(source))
@@ -37,4 +37,4 @@ image.o:image.s
 #run: Image 
 #	@qemu -boot a -fda Image 
 clean:
-	@-rm  *.o $(exe)
+	-@rm  $(obj) $(exe)

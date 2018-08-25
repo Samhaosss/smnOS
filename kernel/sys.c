@@ -7,9 +7,9 @@
 extern unsigned long NR_CALL;
 
 extern int write_char();
-
+extern int  do_reserve();
 fptr system_call_table[]={
-	write_char,
+	do_reserve,
 	write_char };
 
 

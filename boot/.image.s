@@ -280,9 +280,10 @@ com_task:
 	mov %ax, %ss
 	mov %ax, %es
 
+    mov $1,%ax
 	int $0x80
 #	这里循环设置大一些便于查看调度结果 
-	movl $0xFFFfff, %ecx
+	movl $0xfff, %ecx
 1:  loop 1b 
 	jmp com_task
 

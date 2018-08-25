@@ -1,21 +1,16 @@
 .code32 
-#这里将编写二十六任务轮流执行
 
-#在实模式下的段表和中断表设置不足
-#因此首先设置段表:
+#这里的gdt将用作内核gdt
 #	0	| 0 0 0 0			  |
-#	1	| 00c0 9a00 0000 07ff |  --临时内核代码段	
-#	2	| 00c0 9200 0000 07ff |	 --临时内核数据段
+#	1	| 00c0 9a00 0000 07ff |  --内核代码段	
+#	2	| 00c0 9200 0000 07ff |	 --内核数据段
 #	3	| 00c0 920b 8000 0002 |  --显存段
 #	4	|        ldt0		  |  --所有任务共享一个ldt
 #	5	|		 tss0		  |  --任务0tss
 #	6	|		 tss1		  |  --任务1tss
 #	7	|		 tss*...	  |	 --任务*ldt
 
-#接着设置中断表
-# 除 0x08、0x80中断为时钟和系统中断给予处理程序
-# 其他所有中断使用默认处理程序
-
+/* 0.0.2版本的内存布局
 #最终程序内存布局如下:
 #		| USER_STK1	|
 #		| TASK1CODE |
@@ -38,14 +33,12 @@
 #		|	kernel	|		|
 # 0x0000|	setup	|		|
 #		|___________|		|
-
+*/ 
 #本次的改动主要是 将gdt、idt设置代码用c实现，这样读起来比较舒服
 #但是因为硬盘加载还是使用bios调用，因此减少了任务数量以减少整个程序的大小
 
 #即将完成内核的中断处理和任务调度部分
 #使用少数几个任务进行测试
-#
-#中断和系统调用将不会一次性完成，首先将完成框架，具体处理过程将在进一步的完善中完成
 #
 #本内核仍然未开启分页 仅仅在分段下 进行分时调度任务
 
@@ -61,9 +54,9 @@
 .global setup, com_task, empty_tss, idt, gdt
 
 #本程序的任务很简单，只是将未完成的GDT IDT地址加载，在检查A20，随即跳转c代码执行
-#这里定义了很多数据，包括：GDT、idt、ldt0（共享）、TSS
 
-.text 
+.text
+
 setup:
 	mov $0x10, %ax
 	mov %ax, %ds
@@ -71,10 +64,8 @@ setup:
 	mov %ax, %fs
 	mov %ax, %gs 
 #栈与数据段在同一段
-	lss start_stack,%esp 
-#	mov %ax, %ss 
-#	movl $KSTACK+511, %esp  
-	lidt idt_48 
+	lss start_stack,%esp #定义在c程序
+	lidt idt_48 #提前将未完善的gdt idt加载
 	lgdt gdt_48 
 
 #设置段表后，刷新段寄存器
@@ -84,13 +75,15 @@ setup:
 	mov %ax, %fs
 	mov %ax, %gs
 	lss start_stack,%esp 
-	xorl %eax, %eax 
+#检测a20
+/*	xorl %eax, %eax
 1:
 	incl %eax
 	movl %eax, 0x000000
 	cmpl %eax, 0x100000
-	je 1b
+	je 1b*/
 #设置8253芯片，改变计数器发起中断频率
+
 	movb $0x36, %al		#设置通道0工作在方式3、二进制计数
 	movl $0x43, %edx	#8253控制寄存器写端口
 	outb %al, %dx
@@ -99,6 +92,7 @@ setup:
 	outb %al, %dx		# 设置通道0 频率为100HZ
 	movb %ah, %al
 	out %al, %dx 
+
 
 to_c_code:
 	pushl $0
@@ -106,22 +100,14 @@ to_c_code:
 	pushl $0
 	pushl $sys_die
 	pushl $init
+	ret
 sys_die:
 	jmp sys_die 
 
-/*#设置8253芯片，改变计数器发起中断频率
-	movb $0x36, %al		#设置通道0工作在方式3、二进制计数
-	movl $0x43, %edx	#8253控制寄存器写端口
-	outb %al, %dx
-	movl $LTACH, %eax
-	movl $0x40, %edx 
-	outb %al, %dx		# 设置通道0 频率为100HZ
-	movb %ah, %al
-	out %al, %dx 
-*/
+
 #这里即将增加更多的set操作 内核的部分将用c语言完成
 
-.align 8 
+/*.align 8
 back_user_mode: 
 #	接下来设置任务0的内核堆栈，模拟中断返回、
 	pushfl 
@@ -147,7 +133,7 @@ back_user_mode:
 
 //这一部分将有更完善的中断、系统调用完成
 #任务切换代码 方式与linux 0.11基本相似
-
+*/
 .align 2
 idt_48:
 	.word 256*8-1
@@ -201,11 +187,20 @@ com_task:
 	mov %ax, %ds  #指向局部数据段
 	mov %ax, %ss
 	mov %ax, %es
-
-	int $0x80
-#	这里循环设置大一些便于查看调度结果 
-	movl $0xFFFfff, %ecx
-1:  loop 1b 
-	jmp com_task
+	movl $70, %ebx
+sys_c:
+    cmpl $90, %ebx
+    jne 2f
+    movl $70, %ebx
+2:
+   // mov $0, %ax
+    //int $0x80
+    movl $1, %eax
+   // int $0x80
+#	这里循环设置大一些便于查看调度结果
+	movl $0xfffff, %ecx
+1:  loop 1b
+    incl %ebx
+	jmp sys_c
 
 

@@ -11,6 +11,7 @@
 .equ OFFSET, 0x0000
 .equ LEN,10
 
+.global _start
 
 	
 _start:
@@ -114,8 +115,8 @@ a20:
 	in $0x92, %al 
 	or $0x02, %al 
 	out %al, $0x92
-
-	mov	$0x11, %al		
+/*
+	mov	$0x11, %al
 	
 	out	%al, $0x20		# send it to 8259A-1
 	.word	0x00eb,0x00eb		# jmp $+2, jmp $+2
@@ -142,7 +143,7 @@ a20:
 	out	%al, $0x21
 	.word	0x00eb,0x00eb
 	out	%al, $0xA1
-
+*/
 #start protect mode 
 	mov %cr0, %eax
 	bts $0, %eax 

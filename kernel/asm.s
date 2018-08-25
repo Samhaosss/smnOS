@@ -1,13 +1,13 @@
 .code32 
 
-.global hd_intr_no_error, hd_intr_error 
+.global hd_intr_no_error, hd_intr_error, reserve,do_reserve
 
 #随后可能会添加相应的中断处理
 hd_intr_no_error:
 	pushl $die 
 
 no_error_code:
-	xchagl %eax, (%esp)
+	xchgl %eax, (%esp)
 	pushl %ebx
 	pushl %ecx 
 	pushl %edx
@@ -17,8 +17,8 @@ no_error_code:
 	push %ds
 	push %es
 	push %fs
-	push %gs 
-	pushl $0	;error code 
+	//push %gs
+	pushl $0	#error code
 	lea 44(%esp), %edx
 	pushl %edx 
 	movl $0x10, %edx 
@@ -27,7 +27,7 @@ no_error_code:
 	mov %dx, %fs 
 	call *%eax
 	addl $8, %esp
-	push %gs 
+	//pop %gs
 	pop %fs
 	pop %es
 	pop %ds
@@ -48,10 +48,13 @@ reserve:
 	jmp no_error_code 
 
 do_reserve:
+   // pushl $25
+    call write_char
+    //addl $4, %esp
 	ret 
 
 hd_intr_error:
-	pushl $write_char 
+	pushl $die
 error_code:
 	xchgl %eax,4(%esp)		# error code <-> %eax
 	xchgl %ebx,(%esp)		# &function <-> %ebx

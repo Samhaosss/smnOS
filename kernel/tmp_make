@@ -1,5 +1,4 @@
 include ../Makefile.header
-OBJS = asm.o sche.o syscall.o sys.o trap.o
 
 LDFLAGS += -r
 
@@ -7,14 +6,15 @@ CFLAGS += -I../include
 CPP += -I../include
 
 .c.s:
-	@$(CC) $(CFLAGS) \
+	$(CC) $(CFLAGS) \
 	-S -o $*.s $<
 .s.o:
-	@$(AS) -o $*.o $<
-.c.o:
-	@$(CC) $(CFLAGS) -c -o $*.o $<
-#	$(AS)  -o $*.o $*.s
+	$(AS) -o $*.o $<
+#.c.o:
+	$(CC) $(CFLAGS) -S -o $*.s $<
+	$(LD) $(LDFLAGS) -o $*.o $<
 
+OBJS = sche.o sys_call.o traps.o asm.o sys.o
 
 kernel.o : $(OBJS)
 	@$(LD) $(LDFLAGS) -o kernel.o $(OBJS)
@@ -25,8 +25,6 @@ dep:
 	@(for i in *.c;do echo -n `echo $$i | sed 's,\.c,\.s,'`" "; \
 		$(CPP) -M $$i;done) >> tmp_make
 	@cp tmp_make Makefile
-clean:
-	-@rm $(OBJS) kernel.o
 
 ### Dependencies:
 sche.s sche.o: sche.c ../include/sche.h

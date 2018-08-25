@@ -4,27 +4,21 @@
 #define lgdt() __asm__ ("lgdt gdt_48\n\t"::)
 #define sti() __asm__ ("sti\n\r"::)
 #define cli() __asm__ ("cli\n\r"::)
-/*
- * movl $0x28, %%eax\n\t"	\
-		"ltr %ax\n\t "	\
-		"movl $0x20, %%eax\n\t"	\
-		"lldt %%ax\n\t"	\
-		"sti\n\t"	\
- * */
-#define kmode_to_umode ()	\
-	__asm__ (  "sti \n\t"	\
+
+#define kmode_to_umode()	\
+	__asm__ (  \
 		"movl %%esp, %%eax\n\t" \
 		"pushl $0x17 \n\t"	\
 		"pushl %%eax \n\t"	\
-		"pushfl\n\t"	\
-		"pushl $0x0f\n\t"	\
-		"pushl $1f\n\t"	\
-		"iret\n\t"	\
+		"pushfl \n\t"	\
+		"pushl $0x0f \n\t"	\
+		"pushl $1f \n\t"	\
+		"iret \n\t"	\
 		"1:\tmovl $0x17, %%eax \n\t"	\
 		"movw %%ax, %%ds\n\t"	\
 		"movw %%ax, %%es\n\t"	\
 		"movw %%ax, %%fs\n\t"	\
-		"movw %%ax, %%gs\n\s"	\
+		"movw %%ax, %%gs\n\t"	\
 		:::"ax"	)
 
 #define _set_gate(gate_add, type, dpl, add)	\
@@ -38,8 +32,14 @@
 			  "o" ( *( 4 + (char*)(gate_add) ) ),	\
 			  "d" ( (char*)(add) ), "a" (0x00080000)	)
 
+
+
+#define _set_intr_gate( n,add)	\
+	_set_gate(&idt[n],14,0,add)
+
 #define _set_trap_gate( n, add )\
-	_set_gate(&idt[n], 14, 0, add)
+	_set_gate(&idt[n], 15, 0, add)
+
 #define _set_sys_gate( n, add )	\
 	_set_gate(&idt[n],15, 3, add)
 
