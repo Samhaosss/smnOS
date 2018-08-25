@@ -17,7 +17,14 @@ struct i387_struct {
 	long	foo;
 	long	fos;
 	long	st_space[20];	/* 8*10 bytes for each FP-reg = 80 bytes */
-};
+
+//#define  TASK_NM 26
+#define TASK_RUNNING 0
+#define TASK_INTERRUPTIBLE 1
+#define TASK_UNINTERRUPTIBLE 2
+#define TASK_ZOMBIE 3
+#define TASK_STOPPED 4
+
 
 struct tss_struct {
 	long	back_link;	/* 16 high bits zero */
@@ -46,47 +53,86 @@ struct tss_struct {
 	struct i387_struct i387;
 };
 
-struct task_struct{
-	long state;
-	long pri;
-	long count;
-	unsigned long sigmap;
-	struct sigaction sigaction[32];
-	unsigned long block;
-	int exit_code;
-	/*mem info data
-	 *...
-	 * */
-	long pid,father, pgrp, session, leader;
-	unsigned long uid, euid, suid;
-	unsigned long gid, egid, sgid;
-	long alarm;
-	/*
-	 * time_use info 
-	 * */
-	unsigned short used_math;
-	//int tty;
-	/*
-	 *fs
-	 * */
-	struct desc_struct ldt[3];
-	struct tss_struct tss;
-};
 
 #define _TSS(n) ((((unsigned long) n)<<4)+(FIRST_TSS_ENTRY<<3))
 #define _LDT(n) ((((unsigned long) n)<<4)+(FIRST_LDT_ENTRY<<3))
 
-#define switch_to(n) {	\
-	struct {long a,b;} tmp;	\
-	__asm__( "cmpl %%eax,current \n\t"	\
-			"je 1f \n\t"	\
-			"movw %%dx, %1 \n\t"	\
-			"xchgl %%eax, current\n\t"	\
-			"ljmp *%0 \n\r"	\
-			"1:"	\
-			::"m" (*&tmp.a),"m" (*&TMp.b),\
-			"d" (_TSS(n)), "c" ((long)tasks[n]) );	\
+
+typedef struct gdtldtidt_struct {
+	short a;
+	short b;
+	short c;
+	short d;
+} des_table[256];
+extern des_table idt;
+
+
+struct task_struct{
+	unsigned long pid;
+	unsigned long state;
+	//used for schedule
+	unsigned long counter;
+	unsigned long pri;
+	//no signal here
+    struct gdtldtidt_struct ldt[3];
+	struct tss_struct tss;
+};
+extern void com_task(void);
+extern char user_stack[2][4096];
+
+#define TASK0	\
+{	0,0,15,15,	\
+	{ {0,0,0,0},\
+	  {0x03ff,0x0000,0xfa00,0x00c0},\
+	  {0x03ff,0x0000,0xf200,0x00c0}	},	\
+	{	0, &task0, 0x10,			\				
+		0,0,0,0,0,	\
+		&com_task,0x200,0,0,0,0,	\
+		&(user_stack[0][4096-1]),0,0,0,	\
+		0x17,0x0f,0x17,0x17,0x17,0x17,	\
+		_LDT(0),	0x8000000	\
+	}}
+
+#define TASK1 	\
+{	0,0,15,15,	\
+	{ {0,0,0,0},\
+	  {0x07ff,0x0000,0xfa00,0x00c0},\
+	  {0x07ff,0x0000,0xf200,0x00c0}	},	\
+	{	0, &task1, 0x10,			\				
+		0,0,0,0,0,	\
+		&com_task,0x200,0,0,0,0,	\
+		&user_stack[1][4096-1],0,0,0,	\
+		0x17,0x0f,0x17,0x17,0x17,0x17,	\
+		_LDT(1),	0x8000000	\
+	}	\
 }
 
-#endif 
+#define FIRST_LDT 4
+#define FIRST_TSS 5
 
+//第n个ldt的选择子
+#define _LDT(n)	( (((unsigned long)n)<<4)+ (FIRST_LDT<<3)) 
+#define _TSS(n) ( ( ((unsigned long)n)<<4 )+(FIRST_TSS<<3))
+
+#define ltr(n) __asm__("ltr %%ax\n\t"::"a" (_TSS(n)))
+#define lldt(n) __asm__("lldt %%ax\n\t"::"a" (_LDT(n)))
+
+#define switch_to(n) {\
+struct {long a,b;} __tmp; \
+__asm__("cmpl %%ecx,current\n\t" \
+	"je 1f\n\t" \
+	"movw %%dx,%1\n\t" \
+	"xchgl %%ecx,current\n\t" \
+	"ljmp *%0\n\t" \
+	"1:" \
+	::"m" (*&__tmp.a),"m" (*&__tmp.b), \
+	"d" (_TSS(n)),"c" ((long) tasks[n])); \
+}
+
+
+
+
+
+typedef int (*fptr)();
+
+#endif 

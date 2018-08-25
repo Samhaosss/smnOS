@@ -11,6 +11,7 @@
 .equ OFFSET, 0x0000
 .equ LEN,10
 
+.global _start
 
 	
 _start:
@@ -79,10 +80,20 @@ is_disk1:
 	#准备进入 保护模式
 	cli
 	#move sys image into to 0x0000:0000
+/*	mov $0x1000, %ax
+	mov %ax, %ds 
 	mov $0x0000, %ax
+	mov %ax, %es
+	sub %bx, %bx
+	sub %di, %di 
+	mov $0x1000, %cx 
+	rep movsw 
+*/
+	mov $0x0000, %ax 
 do_move:
 #接下来将内核从0x1000:0000移动到0x0000:0000
 #rep movsw 将ds:si -> es:di
+	
 	mov %ax, %es
 	add $0x1000, %ax
 	cmp $0x9000, %ax
@@ -93,6 +104,7 @@ do_move:
 	mov $0x8000,%cx
 	rep movsw
 	jmp do_move
+
 end_move:
 	mov $SETUPSEG,%ax
 	mov %ax, %ds
@@ -141,7 +153,7 @@ a20:
 	mov %cr0, %eax
 	bts $0, %eax 
 	mov %eax, %cr0 
-
+	
 #seg selector
 	.equ cs0, 0x0008
 	ljmp $cs0, $0
@@ -154,17 +166,19 @@ IDT:
 
 
 gdt_48:
-	.word 0x800
+	.word 0x7ff
 	.word 512+gdt, 0x9
 
 gdt:
 	.word 0, 0, 0, 0
 	#code seg 
+#	.quad 0x00c09a00000007ff
 	.word 0x07ff		#limit 
 	.word 0x0000		#base 
 	.word 0x9a00		# 1001 1010 0000 0000
 	.word 0x00c0		# 0000 0000 1100 0000
 	#data set 
+#	.quad 0x00c09200000007ff
 	.word 0x07ff		#limit 
 	.word 0x0000		#base 
 	.word 0x9200
